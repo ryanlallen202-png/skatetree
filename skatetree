@@ -1,0 +1,104 @@
+loadstring([==[
+-- SkateTree loader. Client-side via executor. Server-owned values stay out of reach.
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+local config = { speed = 16, multiplier = 1, enforce = false }
+
+local function getHum()
+	local char = player.Character
+	return char and char:FindFirstChildOfClass("Humanoid")
+end
+
+local function applySpeed()
+	local hum = getHum()
+	if hum then hum.WalkSpeed = config.speed end
+end
+
+-- tries any score/multiplier-looking NumberValue or attribute on the client
+local function applyMultiplier()
+	local found = false
+	local stats = player:FindFirstChild("leaderstats")
+	if stats then
+		for _, v in ipairs(stats:GetDescendants()) do
+			if v:IsA("NumberValue") or v:IsA("IntValue") then
+				if v.Name:lower():find("multi") then
+					v.Value = config.multiplier
+					found = true
+				end
+			end
+		end
+	end
+	player:SetAttribute("ScoreMultiplier", config.multiplier)
+	return found
+end
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "SkateTreeMod"
+gui.ResetOnSpawn = false
+gui.Parent = game:GetService("CoreGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.fromOffset(220, 150)
+frame.Position = UDim2.fromOffset(20, 200)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
+
+local function makeBox(name, y, default, onChange)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -10, 0, 20)
+	label.Position = UDim2.fromOffset(5, y)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.Text = name
+	label.Parent = frame
+
+	local box = Instance.new("TextBox")
+	box.Size = UDim2.new(1, -10, 0, 26)
+	box.Position = UDim2.fromOffset(5, y + 20)
+	box.Text = tostring(default)
+	box.ClearTextOnFocus = false
+	box.Parent = frame
+	box.FocusLost:Connect(function()
+		local n = tonumber(box.Text)
+		if n then onChange(n) end
+	end)
+end
+
+makeBox("Speed", 5, config.speed, function(n)
+	config.speed = n
+	applySpeed()
+end)
+
+makeBox("Score multiplier", 70, config.multiplier, function(n)
+	config.multiplier = n
+	applyMultiplier()
+end)
+
+local toggle = Instance.new("TextButton")
+toggle.Size = UDim2.new(1, -10, 0, 26)
+toggle.Position = UDim2.fromOffset(5, 115)
+toggle.Text = "Enforce speed: OFF"
+toggle.Parent = frame
+toggle.MouseButton1Click:Connect(function()
+	config.enforce = not config.enforce
+	toggle.Text = "Enforce speed: " .. (config.enforce and "ON" or "OFF")
+end)
+
+player.CharacterAdded:Connect(function()
+	task.wait(0.5)
+	applySpeed()
+	applyMultiplier()
+end)
+
+RunService.Heartbeat:Connect(function()
+	if config.enforce then applySpeed() end
+end)
+
+applySpeed()
+applyMultiplier()
+]==])()
